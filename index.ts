@@ -139,17 +139,6 @@ const screenshots = new Map<string, string>()
 let previousLaunchOptions: any = null
 
 async function ensureBrowser({ launchOptions, allowDangerous }: any) {
-  const DANGEROUS_ARGS = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--single-process',
-    '--disable-web-security',
-    '--ignore-certificate-errors',
-    '--disable-features=IsolateOrigins',
-    '--disable-site-isolation-trials',
-    '--allow-running-insecure-content',
-  ]
-
   // Parse environment config safely
   let envConfig = {}
   try {
@@ -164,44 +153,14 @@ async function ensureBrowser({ launchOptions, allowDangerous }: any) {
   // Deep merge environment config with user-provided options
   const mergedConfig = deepMerge(envConfig, launchOptions || {})
 
-  // Security validation for merged config
-  if (mergedConfig?.args) {
-    const dangerousArgs = mergedConfig.args?.filter?.((arg: string) =>
-      DANGEROUS_ARGS.some((dangerousArg: string) =>
-        arg.startsWith(dangerousArg),
-      ),
-    )
-    if (
-      dangerousArgs?.length > 0 &&
-      !(allowDangerous || process.env.ALLOW_DANGEROUS === 'true')
-    ) {
-      throw new Error(
-        `Dangerous browser arguments detected: ${dangerousArgs.join(', ')}. Fround from environment variable and tool call argument. ` +
-          'Set allowDangerous: true in the tool call arguments to override.',
-      )
-    }
-  }
-
-  try {
-    if (
-      (browser && !browser.connected) ||
-      (launchOptions &&
-        JSON.stringify(launchOptions) != JSON.stringify(previousLaunchOptions))
-    ) {
-      await browser?.close()
-      browser = null
-    }
-  } catch (error) {
-    browser = null
-  }
-
   previousLaunchOptions = launchOptions
 
   if (!browser) {
+    const port = 9222
     browser = await puppeteer.connect(
       deepMerge(
         {
-          browserURL: `http://localhost:${9222}`,
+          browserURL: `http://localhost:${port}`,
         },
         mergedConfig,
       ),
@@ -558,6 +517,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) =>
 async function runServer() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
+  console.error('MCP Server running on stdio')
 }
 
 runServer().catch(console.error)
